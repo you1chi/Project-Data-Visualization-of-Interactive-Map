@@ -1,4 +1,5 @@
 # Project-Data-Visualization-of-Interactive-Map
+***Jiayi Song***
 > It's a project of data visualization on interactive map, written in R. <br>
 > The topic is about the damages (financial damages and deaths included) caused by severe wheather in USA in recent years, which are presented by graduated colored maps and interactive maps. <br>
 ## Key Steps
