@@ -22,6 +22,7 @@ map_damage <- ggplot(d_damage, aes(x = long, y = lat, group = group, fill = tota
             aes(label=state.abb, x=state.center.x, 
                 y=state.center.y),size = 3, colour="gray25")
 ```
+![image](https://github.com/you1chi/Project-Data-Visualization-of-Interactive-Map/blob/main/images/00003e.png)
 ### Interactive Map
 *1. a simple example*
 ```{r}
@@ -32,6 +33,7 @@ map_leaflet <- leaflet(d_us) %>%
                            "Year: ", d_us$YEAR,"<br>",
                            "End location: ",d_us$END_LOCATION))
 ```
+![image](https://github.com/you1chi/Project-Data-Visualization-of-Interactive-Map/blob/main/images/simple.png)
 *2. a more complex one*
 ```{r}
 map_leaflet_new<- leaflet(d_us_new) %>%
@@ -43,3 +45,4 @@ map_leaflet_new<- leaflet(d_us_new) %>%
                            "End location: ",d_us_new$END_LOCATION)) %>%
   addLegend(pal = pal, values = ~d_us_new$EVENT_TYPE, title = "Event type")
 ```
+![image](https://github.com/you1chi/Project-Data-Visualization-of-Interactive-Map/blob/main/images/complex.png)
