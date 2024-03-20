@@ -35,6 +35,7 @@ map_leaflet <- leaflet(d_us) %>%
                            "End location: ",d_us$END_LOCATION))
 ```
 ![image](https://github.com/you1chi/Project-Data-Visualization-of-Interactive-Map/blob/main/images/simple.png)
+<br>
 *2. a more complex one*
 ```{r}
 map_leaflet_new<- leaflet(d_us_new) %>%
