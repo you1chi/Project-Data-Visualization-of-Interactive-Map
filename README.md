@@ -33,6 +33,7 @@ map_leaflet <- leaflet(d_us) %>%
                            "End location: ",d_us$END_LOCATION))
 ```
 *2. a more complex one*
+```{r}
 map_leaflet_new<- leaflet(d_us_new) %>%
   addProviderTiles("OpenStreetMap.Mapnik") %>%  
   addCircles(~longitude, ~latitude,color = color_type, radius = 50000,
