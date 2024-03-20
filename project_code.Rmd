@@ -1,0 +1,193 @@
+---
+title: "project code"
+author: "Jiayi Song"
+date: "2024-03-06"
+output: html_document
+---
+
+## set up
+```{r}
+library(ggplot2)
+library(maps)
+library(dplyr)
+library(tidyverse)
+library(ggthemes)
+```
+
+```{r}
+data = read.csv('storms.csv')
+```
+
+## 1. Damge from storms
+*a)State Level Choropleth Maps*
+```{r}
+#modify data
+data$total_damage <- data$DAMAGE_CROPS_USD + data$DAMAGE_PROPERTY_USD
+names(data)[names(data) == "STATE"] <- "state"
+damage_sum <- aggregate(total_damage ~ state, data = data, FUN = sum)
+```
+
+```{r}
+#modify the map
+us.states <- map_data("state") %>%
+  as_tibble(.) %>%
+  dplyr::rename(state = region) %>%
+  select(-subregion) %>%
+  mutate(state = toupper(state))
+
+statenames <- as_tibble(
+  cbind(state=state.name, state.abb = state.abb, 
+        state.center.x = state.center$x, 
+        state.center.y = state.center$y))
+statenames <- statenames %>% mutate_each_(funs(as.numeric), 
+                 vars=c("state.center.x","state.center.y"))
+us.states <- left_join(us.states, statenames)
+```
+
+```{r}
+#merge data
+d_damage <- left_join(damage_sum, us.states, by='state')
+```
+```{r}
+#generate the map
+map_damage <- ggplot(d_damage, aes(x = long, y = lat, group = group, fill = total_damage)) +
+  geom_polygon(color = "white") +
+  scale_fill_gradient(n.breaks = 5,low = "slategray2", high = "slategray4", name = "Total Damage") +
+  theme_map() +
+  labs(title = "Total Monetary Damage by State")+
+  geom_text(data=statenames, inherit.aes = FALSE, 
+            aes(label=state.abb, x=state.center.x, 
+                y=state.center.y),size = 3, colour="gray25")
+map_damage
+```
+<br>
+*b) County Choropleth Maps*
+```{r}
+#modify data
+names(data)[names(data) == "CZ_NAME"] <- "county"
+damage_sum_c <- aggregate(total_damage ~ county + state, data = data, FUN = sum)
+```
+
+```{r}
+#modify map
+us.county <- map_data("county")%>%
+  as_tibble(.) %>%
+  dplyr::rename(state = region,county = subregion) %>%
+  mutate(state = toupper(state),county = toupper(county))
+```
+```{r}
+#merge data
+d_damage_c <- left_join(damage_sum_c, us.county, by=c('state','county'))
+```
+
+```{r}
+#generate the map
+map_damage_c <- ggplot(d_damage_c, aes(x = long, y = lat, group = group, fill = total_damage)) +
+  geom_polygon(color = "white") +
+  scale_fill_gradient(n.breaks = 5,low = "slategray2", high = "slategray4", name = "Total Damage") +
+  theme_map() +
+  labs(title = "Total Monetary Damage by County")
+map_damage_c
+```
+
+<br>
+*c) Density Map*
+```{r}
+#modify data
+data$total_deaths <- data$DEATHS_DIRECT + data$DEATHS_INDIRECT
+d_deaths <- subset(data, data$total_deaths > 0)
+```
+
+
+```{r}
+map_0 <- map_data("state")
+contour_deaths <- ggplot() + 
+  geom_polygon(data = map_0, aes(x=long,y=lat,group=group), color = "grey", fill = NA) + theme_map() + 
+  geom_density_2d(aes(x=BEGIN_LON,y=BEGIN_LAT, color="red"),data=d_deaths, size=1,bins = 10,na.rm = TRUE)
+contour_deaths
+```
+
+```{r}
+density_deaths <- contour_deaths +
+  stat_density2d(data = d_deaths, geom = "polygon",bins = 10,na.rm = TRUE,
+  aes(x = BEGIN_LON, y = BEGIN_LAT, fill = ..level..,alpha=..level..)) + 
+  scale_fill_gradient(low = "yellow", high = "red") + theme_map() +
+  labs(title = "Density Map of Severe Storms")+
+  theme(legend.position = "right") #modify map
+us.county <- map_data("county")%>%
+as_tibble(.) %>%
+dplyr::rename(state = region,county = subregion) %>%
+mutate(state = toupper(state),county = toupper(county))
+#merge data
+d_damage_c <- left_join(damage_sum_c, us.county, by=c('state','county'))
+
+density_deaths
+```
+
+<br>
+Generally, I think the *density map* provides a better visual summary of the distribution of the destructive effects of storms. We can see that most of the states or counties suffer the same level of monetary damage in the Choropleth Maps, and it's difficult to distinguish them. However, the density map which presents the distribution of severe storms causing deaths, clearly shows the geographic differences.<br>
+ 
+## 2. Location of Severe Events
+*a) Interactive Map of Severe Weather Events* <br>
+```{r}
+library(leaflet)
+```
+```{r}
+d_us <- subset(d_deaths, BEGIN_LON >= -125 & BEGIN_LON <= -65 & BEGIN_LAT >= 25 & BEGIN_LAT <= 50)
+map_leaflet <- leaflet(d_us) %>%
+  addProviderTiles("OpenStreetMap.Mapnik") %>%  
+  addMarkers(~BEGIN_LON, ~BEGIN_LAT, popup = paste("Event: ", d_us$EVENT_TYPE, "<br>",
+                           "Number of deaths: ", d_us$total_deaths,"<br>",
+                           "Year: ", d_us$YEAR,"<br>",
+                           "End location: ",d_us$END_LOCATION))
+map_leaflet
+```
+
+
+<br>
+*b) Color by Type of Weather Event*
+```{r}
+table(d_us$EVENT_TYPE)
+```
+```{r}
+d_us_new <- d_us
+d_us_new$EVENT_TYPE <- ifelse(d_us_new$EVENT_TYPE %in% 
+                c("Marine Strong Wind", "Marine Thunderstorm Wind","Waterspout"), "Marine Wind", d_us_new$EVENT_TYPE)
+names(d_us_new)[names(d_us_new) == "BEGIN_LON"] <- "longitude"
+names(d_us_new)[names(d_us_new) == "BEGIN_LAT"] <- "latitude"
+```
+
+
+```{r}
+library(RColorBrewer)
+pal = colorFactor("Spectral", domain = d_us_new$EVENT_TYPE) # Grab a palette
+color_type = pal(d_us_new$EVENT_TYPE)
+```
+```{r}
+map_leaflet_new<- leaflet(d_us_new) %>%
+  addProviderTiles("OpenStreetMap.Mapnik") %>%  
+  addCircles(~longitude, ~latitude,color = color_type, radius = 50000,
+             popup = paste("Event: ", d_us_new$EVENT_TYPE, "<br>",
+                           "Number of deaths: ", d_us_new$total_deaths,"<br>",
+                           "Year: ", d_us_new$YEAR,"<br>",
+                           "End location: ",d_us_new$END_LOCATION)) %>%
+  addLegend(pal = pal, values = ~d_us_new$EVENT_TYPE, title = "Event type")
+map_leaflet_new
+```
+
+
+<br>
+*c) Cluster*
+```{r}
+map_clust <- map_leaflet_new %>% addCircleMarkers(color = color_type, 
+                       clusterOptions = markerClusterOptions())
+map_clust
+```
+
+
+
+
+
+
+
+
